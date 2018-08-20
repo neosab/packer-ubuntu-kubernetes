@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DOCKER="${DOCKER_VERSION:-17.03}"
 KUBERNETES="${KUBERNETES_VERSION:-1.11.1}"
@@ -18,3 +18,22 @@ apt-get install -y kubeadm=$(apt-cache madison kubeadm | grep "$KUBERNETES" | he
 
 swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+
+kubeadm config images pull
+
+# Install and init Helm
+curl -Lo helm-linux-amd64.tar.gz https://storage.googleapis.com/kubernetes-helm/helm-v2.10.0-linux-amd64.tar.gz && tar -zxvf helm-linux-amd64.tar.gz && sudo mv linux-amd64/helm /usr/local/bin/helm
+
+# Download Dispatch CLI
+apt-get install -y jq
+export LATEST=$(curl -s https://api.github.com/repos/vmware/dispatch/releases/latest | jq -r .name)
+curl -OL https://github.com/vmware/dispatch/releases/download/$LATEST/dispatch-linux
+chmod +x dispatch-linux
+mv dispatch-linux /usr/local/bin/dispatch
+
+# Allow insecure registries from k8s service network (required for dispatch)
+cat << EOF > /etc/docker/daemon.json
+{
+  "insecure-registries": ["10.96.0.0/12"]
+}
+EOF
